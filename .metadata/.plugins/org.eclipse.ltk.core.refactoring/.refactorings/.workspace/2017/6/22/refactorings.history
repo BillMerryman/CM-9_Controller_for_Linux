@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Delete resource &apos;BioloidPi3CM9Controller/OpenCV&apos;" deleteContents="false" description="Delete resource &apos;BioloidPi3CM9Controller/OpenCV&apos;" element1="/BioloidPi3CM9Controller/OpenCV" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="1" stamp="1496525173689"/>
+</session>

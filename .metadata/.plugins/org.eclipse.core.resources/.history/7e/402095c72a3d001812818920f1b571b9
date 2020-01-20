@@ -1,0 +1,361 @@
+//============================================================================
+// Name        : BioloidPi3CM9Controller.cpp
+// Author      : Bill Merryman
+// Version     :
+// Copyright   : Martian Laboratories
+// Description : Hello World in C++, Ansi-style
+//============================================================================
+
+#include <iostream>
+#include "opencv2/opencv.hpp"
+#include <termios.h>
+#include <fcntl.h>
+#include <unistd.h>
+
+using namespace std;
+using namespace cv;
+
+#define USB_SERIAL_BAUD_RATE						115200
+#define USB_SERIAL_STOP_BITS						0x00
+#define USB_SERIAL_PARITY							0x00
+#define USB_SERIAL_NUMBER_OF_BITS					0x08
+
+#define BUFFER_SIZE									256
+
+#define PACKET_FLAG_WIDTH							2
+#define ID_WIDTH									1
+#define ID_POSITION									PACKET_FLAG_WIDTH
+#define PAYLOAD_LENGTH_WIDTH						1
+#define PAYLOAD_LENGTH_POSITION						ID_POSITION + ID_WIDTH
+#define INSTRUCTION_OR_ERROR_WIDTH					1
+#define INSTRUCTION_OR_ERROR_POSITION				PAYLOAD_LENGTH_POSITION + PAYLOAD_LENGTH_WIDTH
+#define ERROR_WIDTH									1
+#define ERROR_POSITION								PAYLOAD_LENGTH_POSITION + PAYLOAD_LENGTH_WIDTH
+#define PARAMETER_START_POSITION					INSTRUCTION_OR_ERROR_POSITION + INSTRUCTION_OR_ERROR_WIDTH
+#define CHECKSUM_WIDTH								1
+#define HEADER_WIDTH								PACKET_FLAG_WIDTH + ID_WIDTH + PAYLOAD_LENGTH_WIDTH
+#define NON_PARAMETER_WIDTH							HEADER_WIDTH + INSTRUCTION_OR_ERROR_WIDTH + CHECKSUM_WIDTH
+
+#define CM5_ID										200
+
+enum PROTOCOL
+{
+	//Robotis existing instructions
+	INST_PING = 0x01,
+	INST_READ_DATA = 0x02,
+	INST_WRITE_DATA = 0x03,
+	INST_REG_WRITE = 0x04,
+	INST_ACTION = 0x05,
+	INST_RESET = 0x06,
+	INST_DIGITAL_RESET = 0x07,
+	INST_SYSTEM_READ = 0x0C,
+	INST_SYSTEM_WRITE = 0x0D,
+	INST_SYNC_WRITE = 0x83,
+	INST_SYNC_REG_WRITE = 0x84,
+	//Added instructions
+	//controller level
+	INST_WRITE_PAGE_SECTION_TO_BUFFER = 0xA0,
+	INST_READ_PAGE_SECTION_FROM_BUFFER = 0xA1,
+	INST_TRANSFER_PAGE_BUFFER_TO_FLASH = 0xA2,
+	INST_TRANSFER_PAGE_BUFFER_TO_MOTION_PAGE = 0xA3,
+	INST_TRANSFER_FLASH_TO_PAGE_BUFFER = 0xA4,
+	INST_TRANSFER_FLASH_TO_MOTION_PAGE = 0xA5,
+	INST_EXECUTE_MOTION_PAGE = 0xA6,
+	INST_BREAK_MOTION_PAGE = 0xA7,
+	INST_STOP_MOTION_PAGE = 0xA8,
+	INST_READ_AX12_IMAGE_IN_MEMORY = 0xB0,
+	INST_WRITE_AX12_IMAGE_IN_MEMORY = 0xB1,
+	INST_UPDATE_AX12_IMAGE_IN_MEMORY_FROM_DEVICE = 0xB2,
+	INST_UPDATE_AX12_DEVICE_FROM_IMAGE_IN_MEMORY = 0xB3,
+	INST_UPDATE_ALL_AX12_IMAGES_IN_MEMORY_FROM_DEVICES = 0xB4,
+	INST_UPDATE_ALL_AX12_DEVICES_FROM_IMAGES_IN_MEMORY = 0xB5,
+	INST_READ_AXS1_IMAGE_IN_MEMORY = 0xB8,
+	INST_WRITE_AXS1_IMAGE_IN_MEMORY = 0xB9,
+	INST_UPDATE_AXS1_IMAGE_IN_MEMORY_FROM_DEVICE = 0xBA,
+	INST_UPDATE_AXS1_DEVICE_FROM_IMAGE_IN_MEMORY = 0xBB,
+	INST_UPDATE_ALL_AXS1_IMAGES_IN_MEMORY_FROM_DEVICES = 0xBC,
+	INST_UPDATE_ALL_AXS1_DEVICES_FROM_IMAGES_IN_MEMORY = 0xBD
+};
+
+int configurePort(int fd);
+void transferFlashToMotionPage(int fd, uint8_t pageNumber);
+void executeMotionPage(int fd, uint8_t pageNumber);
+bool transmitPacket(int fd, uint8_t id, uint8_t instruction, uint8_t *error, uint8_t *requestBuffer, uint8_t requestBufferLength, uint8_t *responseBuffer);
+bool sendPacket(int fd, uint8_t id, uint8_t instruction, uint8_t *parameters, uint8_t parametersLength);
+bool receivePacket(int fd, uint8_t *error, uint8_t *parameters);
+void assemblePacket(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t ID, uint8_t instructionOrError, uint8_t *TxParameters, uint8_t TxParameterLength);
+bool isPacketReady(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t *parametersLength);
+void disassemblePacket(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t *ID, uint8_t *instructionOrError, uint8_t *parameters, uint8_t parametersLength);
+uint8_t getOccupiedMessageBuffer(uint8_t *readPosition, uint8_t *writePosition);
+uint16_t getAvailableMessageBuffer(uint8_t *readPosition, uint8_t *writePosition);
+
+void imageProcessing(void);
+
+int main() {
+
+	int usbfd = open("/dev/ttyACM0", O_RDWR| O_NONBLOCK | O_NDELAY);
+
+	switch(fork())
+	{
+	case 0:
+		configurePort(usbfd);
+		transferFlashToMotionPage(usbfd, 1);
+		executeMotionPage(usbfd, 1);
+		break;
+	default:
+		imageProcessing();
+		break;
+	}
+
+//	uint8_t outputBuffer[BUFFER_SIZE];
+//	uint8_t readPosition = 0;
+//	uint8_t writePosition = 0;
+//	uint8_t parameterBuffer[] = { 0x18, 0x01, 0x00, 0x00, 0x00, 0x20, 0x20, 0xFF, 0x00};
+//	assemblePacket(outputBuffer, &readPosition, &writePosition, 1, 0x03, parameterBuffer, sizeof(parameterBuffer));
+//	write(usbfd, outputBuffer, writePosition);           // send 7 character greeting
+
+}
+
+int configurePort(int fd)
+{
+	struct termios tty;
+	memset(&tty, 0, sizeof tty);
+	if (tcgetattr(fd, &tty) != 0) return -1;
+
+	cfsetospeed(&tty, USB_SERIAL_BAUD_RATE);
+	cfsetispeed(&tty, USB_SERIAL_BAUD_RATE);
+
+	tty.c_iflag &= ~IGNBRK;         				// disable break processing
+	tty.c_iflag &= ~(IXON | IXOFF | IXANY); 		// shut off xon/xoff ctrl
+
+	tty.c_lflag = 0;                				// no signaling chars, no echo, no canonical processing
+
+	tty.c_oflag = 0;                				// no remapping, no delays
+
+	tty.c_cc[VMIN]  = 0;            				// read doesn't block
+	tty.c_cc[VTIME] = 10;            				// 1 second read timeout
+
+	tty.c_cflag = (tty.c_cflag & ~CSIZE) | CS8;     // 8-bit chars
+	tty.c_cflag |= (CLOCAL | CREAD);				// ignore modem controls, enable reading
+	tty.c_cflag &= ~(PARENB | PARODD);  			// no parity
+	tty.c_cflag &= ~CSTOPB;
+	tty.c_cflag &= ~CRTSCTS;
+
+	if (tcsetattr(fd, TCSANOW, &tty) != 0) return -1;
+	return 0;
+}
+
+void transferFlashToMotionPage(int fd, uint8_t pageNumber)
+{
+	uint8_t requestParameterBuffer[] = { pageNumber };
+	uint8_t error = 0;
+	transmitPacket(fd, CM5_ID, INST_TRANSFER_FLASH_TO_MOTION_PAGE, &error, requestParameterBuffer, sizeof(requestParameterBuffer), NULL);
+}
+
+void executeMotionPage(int fd, uint8_t pageNumber)
+{
+	uint8_t requestParameterBuffer[] = { pageNumber };
+	uint8_t error = 0;
+	transmitPacket(fd, CM5_ID, INST_EXECUTE_MOTION_PAGE, &error, requestParameterBuffer, sizeof(requestParameterBuffer), NULL);
+}
+
+
+//change this to exchangePackets
+bool transmitPacket(int fd, uint8_t id, uint8_t instruction, uint8_t *error, uint8_t *requestBuffer, uint8_t requestBufferLength, uint8_t *responseBuffer)
+{
+	if (sendPacket(fd, id, instruction, requestBuffer, requestBufferLength))
+	{
+		if (receivePacket(fd, error, responseBuffer))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool sendPacket(int fd, uint8_t id, uint8_t instruction, uint8_t *parameters, uint8_t parametersLength)
+{
+	//go through and have functions check the return value
+	//also either have the error output write to the output window, or
+	//expand the response fields. Or maybe just put what we did get back in the response fields
+	//and pop up an 'error' modal dialog alert. Maybe zero out the arrays before we
+	//populate and send them
+	uint8_t outputBuffer[BUFFER_SIZE];
+	uint8_t readPosition = 0;
+	uint8_t writePosition = 0;
+
+	assemblePacket(outputBuffer, &readPosition, &writePosition, id, instruction, parameters, parametersLength);
+	if(write(fd, outputBuffer, writePosition)==-1) return false;
+	return true;
+}
+
+bool receivePacket(int fd, uint8_t *error, uint8_t *parameters)
+{
+	uint8_t charBuffer[1];
+	uint8_t RS485RxBuffer[BUFFER_SIZE];
+	uint8_t RS485RxReadPosition = 0;
+	uint8_t RS485RxWritePosition = 0;
+	uint8_t returnedPacketLength = 0;
+	uint8_t returnedID = 0;
+
+	while (true)
+	{
+		if(read(fd, charBuffer, 1) == 0) return false;
+		RS485RxBuffer[RS485RxWritePosition++] = charBuffer[0];
+		if (!isPacketReady(RS485RxBuffer, &RS485RxReadPosition, &RS485RxWritePosition, &returnedPacketLength)) continue;
+		disassemblePacket(RS485RxBuffer, &RS485RxReadPosition, &RS485RxWritePosition, &returnedID, error, parameters, returnedPacketLength);
+		return true;
+	}
+}
+
+void assemblePacket(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t ID, uint8_t instructionOrError, uint8_t *TxParameters, uint8_t TxParameterLength)
+{
+
+	while(getAvailableMessageBuffer(readPosition, writePosition) < (HEADER_WIDTH + INSTRUCTION_OR_ERROR_WIDTH + TxParameterLength + CHECKSUM_WIDTH + 1));
+
+	buffer[*writePosition] = 0xFF;
+	(*writePosition)++;
+	buffer[*writePosition] = 0xFF;
+	(*writePosition)++;
+	buffer[*writePosition] = ID;
+	(*writePosition)++;
+	uint8_t payloadLength = ERROR_WIDTH + TxParameterLength + CHECKSUM_WIDTH;
+	buffer[*writePosition] = payloadLength;
+	(*writePosition)++;
+	buffer[*writePosition] = instructionOrError;
+	(*writePosition)++;
+
+	uint8_t checkSum = ID + payloadLength + instructionOrError;
+
+	for(uint8_t count = 0; count < TxParameterLength; count++)
+	{
+		buffer[*writePosition] = TxParameters[count];
+		checkSum += TxParameters[count];
+		(*writePosition)++;
+	}
+
+	buffer[*writePosition] = ~checkSum;
+	(*writePosition)++;
+
+}
+
+bool isPacketReady(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t *parametersLength)
+{
+
+	uint8_t occupiedBufferSize = getOccupiedMessageBuffer(readPosition, writePosition);
+
+	//if we don't even have the sentinel yet, exit
+	if(occupiedBufferSize < PACKET_FLAG_WIDTH) return false;
+
+	//if we have what should at least be a sentinel, but it isn't,
+	//consume the buffer until we find one, or exit if it is exhausted
+	while(buffer[*readPosition] != 0xFF || buffer[(uint8_t)((*readPosition) + 1)] != 0xFF)
+	{
+		(*readPosition)++;
+		occupiedBufferSize = getOccupiedMessageBuffer(readPosition, writePosition);
+		if(occupiedBufferSize < PACKET_FLAG_WIDTH) return false;
+	}
+
+	//if we don't have a headers worth yet, exit
+	if(occupiedBufferSize < HEADER_WIDTH) return false;
+
+	uint8_t parameterSizePosition = *readPosition + PACKET_FLAG_WIDTH + ID_WIDTH;
+	uint8_t packetSize = HEADER_WIDTH + buffer[parameterSizePosition];
+
+	//if we don't have what the header says is a packets worth, exit
+	if(occupiedBufferSize < packetSize) return false;
+
+	uint8_t checkSumPosition = (*readPosition + packetSize) - CHECKSUM_WIDTH;
+	uint8_t checkSum = 0;
+	uint8_t tmpReadPosition = *readPosition + PACKET_FLAG_WIDTH;
+	while(tmpReadPosition != checkSumPosition) checkSum += buffer[tmpReadPosition++];
+	checkSum = ~checkSum;
+	if(checkSum != buffer[tmpReadPosition++])
+	{
+		*readPosition = tmpReadPosition;
+		return false;
+	}
+
+	*parametersLength = buffer[parameterSizePosition] - (INSTRUCTION_OR_ERROR_WIDTH + CHECKSUM_WIDTH);
+	return true;
+
+}
+
+void disassemblePacket(uint8_t *buffer, uint8_t *readPosition, uint8_t *writePosition, uint8_t *ID, uint8_t *instructionOrError, uint8_t *parameters, uint8_t parametersLength)
+{
+
+	*readPosition += PACKET_FLAG_WIDTH;
+	(*ID) = buffer[*readPosition];
+	(*readPosition)++;
+	uint8_t packetLength = buffer[*readPosition];
+	(*readPosition)++;
+	(*instructionOrError) = buffer[*readPosition];
+	(*readPosition)++;
+
+	uint8_t tmpParametersLength = packetLength - (INSTRUCTION_OR_ERROR_WIDTH + CHECKSUM_WIDTH);
+	for(uint8_t parametersPosition = 0; parametersPosition < parametersLength; parametersPosition++)
+	{
+		parameters[parametersPosition] = buffer[*readPosition];
+		(*readPosition)++;
+	}
+	(*readPosition)++;
+
+}
+
+uint8_t getOccupiedMessageBuffer(uint8_t *readPosition, uint8_t *writePosition)
+{
+
+	return (*readPosition < *writePosition) ? (*writePosition - *readPosition) : (BUFFER_SIZE - (*readPosition - *writePosition));
+
+}
+
+uint16_t getAvailableMessageBuffer(uint8_t *readPosition, uint8_t *writePosition)
+{
+
+	return BUFFER_SIZE - getOccupiedMessageBuffer(readPosition, writePosition);
+
+}
+
+
+void imageProcessing(void)
+{
+	char outputMessage[64];
+	int key = 0;
+	double area = 0;
+
+	VideoCapture capture(0);
+	Mat sourceImage;
+	Mat hsvImage;
+	Mat maskImage;
+	Scalar lowerBound(160, 100, 100, 0);
+	Scalar upperBound(190, 255, 255, 255);
+	Moments theMoments;
+	Point position;
+	namedWindow("main", CV_WINDOW_AUTOSIZE);
+	namedWindow("mask", CV_WINDOW_AUTOSIZE);
+	while(key != 'x')
+	{
+		capture.grab();
+		capture.read(sourceImage);
+		cvtColor(sourceImage, hsvImage, CV_RGB2HSV_FULL, 0);
+		inRange(hsvImage, lowerBound, upperBound, maskImage);
+		theMoments = moments(maskImage, false);
+		area = theMoments.m00;
+		if (area > 2000000)
+		{
+			position.x = theMoments.m10 / area;
+			position.y = theMoments.m01 / area;
+			sprintf(outputMessage, "pos: %d, %d", position.x, position.y);
+			putText(sourceImage, outputMessage, position, CV_FONT_HERSHEY_SIMPLEX, 0.5, 0, 1, 8, false);
+		}
+
+		imshow("main", sourceImage);
+		imshow("mask", maskImage);
+
+		key = cvWaitKey(200);
+	}
+
+	destroyWindow("mask");
+	destroyWindow("main");
+}
+

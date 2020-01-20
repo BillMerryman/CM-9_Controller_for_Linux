@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;BioloidPi3CM9Controller&apos; to &apos;LinuxController&apos;" description="Rename resource &apos;BioloidPi3CM9Controller&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="/BioloidPi3CM9Controller" name="LinuxController" stamp="1496969416205" updateReferences="true"/>
+</session>

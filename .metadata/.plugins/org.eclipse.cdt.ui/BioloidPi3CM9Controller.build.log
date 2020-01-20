@@ -1,0 +1,19 @@
+20:51:49 **** Build of configuration Debug for project BioloidPi3CM9Controller ****
+make all 
+'Building file: ../src/BioloidPi3CM9Controller.cpp'
+'Invoking: Cross G++ Compiler'
+arm-linux-gnueabihf-g++ -I"D:\Programming\Robot\Bioloid\OpenCM9\Pi3Controller\BioloidPi3CM9Controller\OpenCV\include" -I"D:\Programming\Robot\Bioloid\OpenCM9\Pi3Controller\BioloidPi3CM9Controller\OpenCV\include\opencv" -I"D:\Programming\Robot\Bioloid\OpenCM9\Pi3Controller\BioloidPi3CM9Controller\OpenCV\include\opencv2" -O0 -g3 -Wall -c -fmessage-length=0 -MMD -MP -MF"src/BioloidPi3CM9Controller.d" -MT"src/BioloidPi3CM9Controller.o" -o "src/BioloidPi3CM9Controller.o" "../src/BioloidPi3CM9Controller.cpp"
+../src/BioloidPi3CM9Controller.cpp: In function 'int main()':
+../src/BioloidPi3CM9Controller.cpp:53:10: warning: unused variable 'error' [-Wunused-variable]
+  uint8_t error = 0;
+          ^
+'Finished building: ../src/BioloidPi3CM9Controller.cpp'
+' '
+'Building target: BioloidPi3CM9Controller'
+'Invoking: Cross G++ Linker'
+arm-linux-gnueabihf-g++  -o "BioloidPi3CM9Controller"  ./src/BioloidPi3CM9Controller.o   -lopencv_shape -lopencv_stitching -lopencv_objdetect -lopencv_superres -lopencv_videostab -lopencv_calib3d -lopencv_features2d -lopencv_highgui -lopencv_videoio -lopencv_imgcodecs -lopencv_video -lopencv_photo -lopencv_ml -lopencv_imgproc -lopencv_flann -lopencv_core -lpthread
+'Finished building target: BioloidPi3CM9Controller'
+' '
+
+20:51:54 Build Finished (took 4s.550ms)
+

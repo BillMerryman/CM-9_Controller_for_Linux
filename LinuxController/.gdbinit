@@ -1,0 +1,1 @@
+set sysroot C:\RasGCC\bin\arm-linux-gnueabihf-gdb-7.10.exe

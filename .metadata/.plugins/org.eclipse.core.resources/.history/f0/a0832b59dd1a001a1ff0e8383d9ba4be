@@ -1,0 +1,19 @@
+/** @file visionManager.h
+ *  @brief Function prototypes for managing images/vision.
+
+ *  @author Bill Merryman
+ *  @bug No known bugs.
+ *
+ *
+ *  Created on: Dec 9, 2019
+ *
+ */
+
+#ifndef VISIONMANAGER_HPP_
+#define VISIONMANAGER_HPP_
+
+
+
+
+
+#endif /* VISIONMANAGER_HPP_ */

@@ -1,0 +1,22 @@
+/** @file visionManager.cpp
+ *  @brief Functions for managing images/vision.
+ *
+ *
+ *  @author Bill Merryman
+ *  @bug No known bugs.
+ *
+ *  Created on: Dec 9, 2019
+ *
+ */
+
+#include "opencv2/imgproc.hpp"
+#include "opencv2/highgui.hpp"
+#include "opencv2/opencv.hpp"
+#include "opencv2/dnn.hpp"
+#include "opencv2/dnn/shape_utils.hpp"
+
+using namespace std;
+using namespace cv;
+using namespace cv::dnn;
+
+

@@ -1,0 +1,4 @@
+20:01:08 **** Clean-only build of configuration Debug for project LinuxController ****
+make clean 
+rm -rf  ./src/LinuxController.o  ./src/LinuxController.d  LinuxController
+ 
