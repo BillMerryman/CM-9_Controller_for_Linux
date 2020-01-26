@@ -1,0 +1,3 @@
+src/visionManager.o: ../src/visionManager.cpp ../src/visionManager.hpp
+
+../src/visionManager.hpp:

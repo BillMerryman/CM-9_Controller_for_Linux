@@ -37,38 +37,30 @@ int main(int argc, char *argv[]) {
 	float darknetConfidence = atof(argv[8]);
 	float darknetNMSThreshold = atof(argv[9]);
 
-	//int usbfd = open("/dev/ttyACM0", O_RDWR| O_NONBLOCK | O_NDELAY);
-	//switch(fork())
-	//{
-	//case 0:
-	//	configurePort(usbfd);
-	//	transferFlashToMotionPage(usbfd, 1);
-	//	executeMotionPage(usbfd, 1);
-	//	break;
-	//default:
-	visionManagerInitialize(caffeNamesFile,
-				protoFile,
-				modelFile,
-				caffeConfidence,
-				darknetNamesFile,
-				cfgFile,
-				weightsFile,
-				darknetConfidence,
-				darknetNMSThreshold);
-		while(key != 'x')
-		{
-			visionManagerProcess(key);
-			key = cvWaitKey(25);
-		}
-	//	break;
-	//}
+	int usbfd = open("/dev/ttyACM0", O_RDWR| O_NONBLOCK | O_NDELAY);
+	configurePort(usbfd);
 
-//	uint8_t outputBuffer[BUFFER_SIZE];
-//	uint8_t readPosition = 0;
-//	uint8_t writePosition = 0;
-//	uint8_t parameterBuffer[] = { 0x18, 0x01, 0x00, 0x00, 0x00, 0x20, 0x20, 0xFF, 0x00};
-//	assemblePacket(outputBuffer, &readPosition, &writePosition, 1, 0x03, parameterBuffer, sizeof(parameterBuffer));
-//	write(usbfd, outputBuffer, writePosition);           // send 7 character greeting
+	visionManagerInitialize(caffeNamesFile,
+							protoFile,
+							modelFile,
+							caffeConfidence,
+							darknetNamesFile,
+							cfgFile,
+							weightsFile,
+							darknetConfidence,
+							darknetNMSThreshold);
+
+	while(key != 'x')
+	{
+		visionManagerProcess(key);
+		key = cvWaitKey(25);
+		if(key=='s')
+		{
+			transferFlashToMotionPage(usbfd, 2);
+			executeMotionPage(usbfd, 2);
+			key=' ';
+		}
+	}
 
 }
 

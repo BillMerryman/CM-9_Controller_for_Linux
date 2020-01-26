@@ -1,0 +1,3 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">&#x0A;<refactoring comment="Delete 3 resources" deleteContents="false" description="Delete 3 resources" element1="/LinuxController/src/main.o" element2="/LinuxController/src/motionManager.o" element3="/LinuxController/src/visionManager.o" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="3" stamp="1579828897396"/>&#x0A;<refactoring comment="Delete 3 resources" deleteContents="false" description="Delete 3 resources" element1="/LinuxController/Debug/src/main.d" element2="/LinuxController/Debug/src/motionManager.d" element3="/LinuxController/Debug/src/visionManager.d" flags="7" id="org.eclipse.ltk.core.refactoring.delete.resources" resources="3" stamp="1579828932655"/>
+</session>

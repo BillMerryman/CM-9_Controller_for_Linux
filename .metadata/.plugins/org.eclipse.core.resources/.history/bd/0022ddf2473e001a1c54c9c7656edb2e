@@ -1,0 +1,3 @@
+src/motionManager.o: ../src/motionManager.cpp ../src/motionManager.hpp
+
+../src/motionManager.hpp:

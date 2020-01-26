@@ -1,4 +1,4 @@
-20:01:08 **** Clean-only build of configuration Debug for project LinuxController ****
+20:21:52 **** Clean-only build of configuration Debug for project LinuxController ****
 make clean 
-rm -rf  ./src/LinuxController.o  ./src/LinuxController.d  LinuxController
+rm -rf  ./src/main.o ./src/motionManager.o ./src/visionManager.o  ./src/main.d ./src/motionManager.d ./src/visionManager.d  LinuxController
  

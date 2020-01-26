@@ -1,0 +1,6 @@
+src/main.o: ../src/main.cpp ../src/motionManager.hpp \
+ ../src/visionManager.hpp
+
+../src/motionManager.hpp:
+
+../src/visionManager.hpp:

@@ -4,13 +4,19 @@
 
 # Add inputs and outputs from these tool invocations to the build variables 
 CPP_SRCS += \
-../src/LinuxController.cpp 
+../src/main.cpp \
+../src/motionManager.cpp \
+../src/visionManager.cpp 
 
 OBJS += \
-./src/LinuxController.o 
+./src/main.o \
+./src/motionManager.o \
+./src/visionManager.o 
 
 CPP_DEPS += \
-./src/LinuxController.d 
+./src/main.d \
+./src/motionManager.d \
+./src/visionManager.d 
 
 
 # Each subdirectory must supply rules for building sources it contributes
